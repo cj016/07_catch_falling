@@ -88,12 +88,17 @@ class GameEngine:
         self.basket.x = max(half, min(WIDTH - half, self.basket.x))
 
     def handle_keydown(self, key):
-        if self.game_over and key == pygame.K_r:
-            self.__init__()
+        if self.game_over:
+            if key == pygame.K_r:
+                self.__init__()
+            return
+        if key in (pygame.K_SPACE, pygame.K_LSHIFT, pygame.K_RSHIFT):
+            self.basket.activate_boost()
 
     def update(self):
         if self.game_over:
             return
+        self.basket.update()
 
         self.frames_until_spawn -= 1
         if self.frames_until_spawn <= 0:
@@ -125,6 +130,7 @@ class GameEngine:
         renderer.draw_scene(surface, self.basket, self.objects)
         renderer.draw_text(surface, font, f"Score: {self.score}", (10, 10))
         renderer.draw_text(surface, font, f"Misses: {self.misses}/{MAX_MISSES}", (10, 36))
+        renderer.draw_boost_hud(surface, font, self.basket)
 
         if self.game_over:
             renderer.draw_banner(surface, font, f"Game Over! Final score: {self.score}. Press R to restart.")
