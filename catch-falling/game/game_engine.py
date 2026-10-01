@@ -18,16 +18,56 @@ from game.renderer import WIDTH, HEIGHT
 
 SPAWN_INTERVAL_FRAMES = 50
 MAX_MISSES = 5
-
+SPAWN_INTERVAL_MIN = 30      # frames
+SPAWN_INTERVAL_MAX = 70
+MAX_OBJECTS = 8              # cap on simultaneous falling objects
+MIN_SPAWN_SEPARATION = 100   # px: next spawn must be at least this far from the last
+OBJECT_RADIUS = 14
 
 class GameEngine:
     def __init__(self):
         self.basket = Basket(x=WIDTH / 2, y=HEIGHT - 30)
         self.objects = []
         self.frames_until_spawn = 0
+        self.last_spawn_x = None
         self.score = 0
         self.misses = 0
         self.game_over = False
+
+    def _pick_spawn_x(self):
+        # Object centers must stay at least one radius from each edge so the
+        # whole circle is inside the playable area.
+        lo = OBJECT_RADIUS
+        hi = WIDTH - OBJECT_RADIUS
+
+        if self.last_spawn_x is None:
+            return random.randint(lo, hi)
+
+        last = self.last_spawn_x
+        sep = MIN_SPAWN_SEPARATION
+
+        # Valid x ranges: [lo, last - sep] on the left, [last + sep, hi] on the right.
+        left_len = max(0, (last - sep) - lo)
+        right_len = max(0, hi - (last + sep))
+        total = left_len + right_len
+
+        if total <= 0:
+            # Separation can't be satisfied (e.g. a very large value): go to the
+            # farther edge.
+            return lo if (last - lo) > (hi - last) else hi
+
+        # Pick uniformly across both valid ranges, weighted by their length.
+        pick = random.uniform(0, total)
+        if pick < left_len:
+            return int(lo + pick)
+        return int(last + sep + (pick - left_len))
+
+    def _spawn_object(self):
+        x = self._pick_spawn_x()
+        self.objects.append(
+            FallingObject(x=x, y=-OBJECT_RADIUS, radius=OBJECT_RADIUS, speed=3)
+        )
+        self.last_spawn_x = x
 
     def _spawn_object(self):
         x = random.randint(20, WIDTH - 20)
@@ -57,8 +97,9 @@ class GameEngine:
 
         self.frames_until_spawn -= 1
         if self.frames_until_spawn <= 0:
-            self._spawn_object()
-            self.frames_until_spawn = SPAWN_INTERVAL_FRAMES
+            if len(self.objects) < MAX_OBJECTS:
+                self._spawn_object()
+            self.frames_until_spawn = random.randint(SPAWN_INTERVAL_MIN, SPAWN_INTERVAL_MAX)
 
         for obj in self.objects:
             obj.update()
