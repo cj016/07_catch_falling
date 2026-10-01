@@ -36,14 +36,16 @@ class GameEngine:
     def handle_input(self, keys_pressed):
         if self.game_over:
             return
-        if keys_pressed[pygame.K_LEFT]:
-            self.basket.x -= self.basket.speed
-        if keys_pressed[pygame.K_RIGHT]:
-            self.basket.x += self.basket.speed
-        # Boundary handling: only clamps against the screen edges, not
-        # accounting for the basket's own width - it can hang half off
-        # either side of the screen.
-        self.basket.x = max(0, min(WIDTH, self.basket.x))
+
+        # Net direction: -1, 0 or +1. If both keys are held they cancel out,
+        # instead of the basket drifting right because RIGHT is checked last.
+        direction = keys_pressed[pygame.K_RIGHT] - keys_pressed[pygame.K_LEFT]
+        self.basket.x += direction * self.basket.speed
+
+        # Basket x is its center, so keep the center at least half a width
+        # away from each edge. That keeps the whole rect on screen.
+        half = self.basket.width / 2
+        self.basket.x = max(half, min(WIDTH - half, self.basket.x))
 
     def handle_keydown(self, key):
         if self.game_over and key == pygame.K_r:
